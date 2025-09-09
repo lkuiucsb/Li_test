@@ -47,3 +47,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Generated plot files that can be recreated
+Rplots.pdf
