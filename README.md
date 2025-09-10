@@ -35,9 +35,3 @@ A snippet from `density.csv`:
 "2","ACWO",2016,"SP 1",0,0.425146870315075
 ... 
 ```
-
-## Purpose
-
-This repository is designed for testing data analysis workflows, specifically for working with ecological survey data from NOAA and generating summary tables and figures.
-
-Feel free to extend the analysis or adapt the scripts to your specific research needs!
