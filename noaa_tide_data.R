@@ -1,21 +1,17 @@
 #!/usr/bin/env Rscript
 
 # NOAA Tide Prediction Data Fetcher
-# Fetches and displays tide prediction data for the last 3 days
+# Fetches and displays tide prediction data for a user-input date range (3 days prior to input date)
 # Station: 9411340 (Port Reyes, CA)
 
 # Load required libraries
 library(httr)
 library(jsonlite)
 library(lubridate)
+library(ggplot2)
 
 # Function to fetch tide prediction data from NOAA API
-fetch_tide_data <- function(station_id = "9411340", days_back = 3) {
-  
-  # Calculate date range (last 3 days)
-  end_date <- Sys.Date()
-  start_date <- end_date - days(days_back)
-  
+fetch_tide_data <- function(station_id = "9411340", start_date, end_date) {
   # Format dates for API (YYYYMMDD)
   start_date_str <- format(start_date, "%Y%m%d")
   end_date_str <- format(end_date, "%Y%m%d")
@@ -49,7 +45,7 @@ fetch_tide_data <- function(station_id = "9411340", days_back = 3) {
     # Check if request was successful
     if (status_code(response) == 200) {
       # Parse JSON response
-      data <- fromJSON(content(response, "text", encoding = "UTF-8"))
+      data <- fromJSON(content(response, "text", encoding = "UTF-8") )
       
       if (!is.null(data$predictions) && length(data$predictions) > 0) {
         return(data)
@@ -72,7 +68,6 @@ fetch_tide_data <- function(station_id = "9411340", days_back = 3) {
 
 # Function to display tide data in a formatted way
 display_tide_data <- function(tide_data) {
-  
   if (is.null(tide_data) || is.null(tide_data$predictions)) {
     cat("No data to display.\n")
     return()
@@ -115,6 +110,27 @@ display_tide_data <- function(tide_data) {
   cat("Highest tide:", round(max(heights, na.rm = TRUE), 2), "ft\n")
   cat("Lowest tide:", round(min(heights, na.rm = TRUE), 2), "ft\n")
   cat("Average height:", round(mean(heights, na.rm = TRUE), 2), "ft\n")
+  cat("Standard deviation:", round(sd(heights, na.rm = TRUE), 2), "ft\n")
+}
+
+# Function to plot tide data using ggplot2
+plot_tide_data <- function(tide_data, start_date, end_date) {
+  if (is.null(tide_data) || is.null(tide_data$predictions)) {
+    cat("No data to plot.\n")
+    return()
+  }
+  predictions <- tide_data$predictions
+  predictions$datetime <- as.POSIXct(predictions$t, format = "%Y-%m-%d %H:%M")
+  predictions$height <- as.numeric(predictions$v)
+  
+  ggplot(predictions, aes(x = datetime, y = height)) +
+    geom_line(color = "blue") +
+    labs(title = sprintf("Tide Heights for Station %s\n%s to %s", 
+                         ifelse(is.null(tide_data$metadata$id), "9411340", tide_data$metadata$id), 
+                         format(start_date, "%Y-%m-%d"), 
+                         format(end_date, "%Y-%m-%d")),
+         x = "Time", y = "Tide Height (ft)") +
+    theme_minimal()
 }
 
 # Main execution
@@ -122,12 +138,26 @@ main <- function() {
   cat("NOAA Tide Prediction Data Fetcher\n")
   cat("==================================\n\n")
   
-  # Fetch tide data for the last 3 days
-  tide_data <- fetch_tide_data()
+  # User input for date
+  input_date <- readline(prompt = "Enter a date (YYYY-MM-DD): ")
+  if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", input_date)) {
+    cat("Invalid date format. Please use YYYY-MM-DD.\n")
+    return()
+  }
+  input_date <- as.Date(input_date)
+  
+  # Calculate start and end dates (3 days prior to input date)
+  end_date <- input_date
+  start_date <- end_date - 2
+  
+  # Fetch tide data for the date range
+  tide_data <- fetch_tide_data(start_date = start_date, end_date = end_date)
   
   # Display the data
   if (!is.null(tide_data)) {
     display_tide_data(tide_data)
+    # Plot data using ggplot2
+    print(plot_tide_data(tide_data, start_date, end_date))
   } else {
     cat("Failed to fetch tide data. Please check your internet connection and try again.\n")
   }
